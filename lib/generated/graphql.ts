@@ -63,6 +63,19 @@ export type AssetDetail = {
   supply: Scalars['String']['output'];
 };
 
+/** One page of assets. Cursor-paginated like every other list in the schema. */
+export type AssetPage = {
+  items: Array<AssetDetail>;
+  pageInfo: PageInfo;
+};
+
+/** What a list of assets is ordered by. See the `assets` root field. */
+export type AssetSort =
+  /** Most-held first — the default, and the useful one for a token list. */
+  | 'HOLDERS'
+  /** Highest recent transfer volume first. */
+  | 'VOLUME';
+
 export type Balance = {
   assetCode: Maybe<Scalars['String']['output']>;
   assetIssuer: Maybe<Scalars['String']['output']>;
@@ -271,6 +284,17 @@ export type Query = {
    * buckets always agree with the operation list.
    */
   asset: AssetDetail;
+  /**
+   * Fetch a page of assets, ordered by holder count or transfer volume.
+   *
+   * Cursor-paginated on the same `PageInfo` as every other list in the schema, so
+   * a walk through the assets keeps its place even as newer activity lands. The
+   * page is a summary: it carries supply and holder counts, not the per-asset
+   * volume series `asset` returns. Clients that want the series ask for it on
+   * `asset`, one asset at a time — a list of fifty series is fifty times the
+   * aggregation for a column nobody is reading.
+   */
+  assets: AssetPage;
   /** The custom schema registered for a contract, if any. */
   contractSchema: Maybe<ContractSchema>;
   /**
@@ -347,6 +371,27 @@ export type QueryAssetArgs = {
   from?: InputMaybe<Scalars['String']['input']>;
   network?: InputMaybe<Network>;
   to?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/**
+ * Root queries.
+ *
+ * Every field takes an optional `network` argument:
+ *
+ * - **Omitted** — the primary network configured for this deployment. That is
+ *   exactly the data every client saw before the argument existed, which is why
+ *   adding it is additive rather than breaking.
+ * - **Named** — that network and only that network. A network the deployment
+ *   does not serve is a `BAD_USER_INPUT` error, never a silent fall back to the
+ *   primary: "I asked for testnet and got mainnet" is the data-mixing failure
+ *   this argument exists to prevent.
+ */
+export type QueryAssetsArgs = {
+  cursor?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  network?: InputMaybe<Network>;
+  sortBy?: InputMaybe<AssetSort>;
 };
 
 
@@ -712,6 +757,15 @@ export type AccountActivitySubscriptionVariables = Exact<{
 
 export type AccountActivitySubscription = { accountActivity: { id: string, type: OperationType, createdAt: string, transactionHash: string, sourceAccount: string, from: string | null, to: string | null, amount: string | null, asset: string | null, startingBalance: string | null, funder: string | null, offerId: string | null, price: string | null, selling: string | null, buying: string | null } };
 
+export type AssetsQueryVariables = Exact<{
+  sortBy?: InputMaybe<AssetSort>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  cursor?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type AssetsQuery = { assets: { items: Array<{ asset: string, code: string | null, issuer: string | null, native: boolean, supply: string, holders: number }>, pageInfo: { hasNextPage: boolean, cursor: string | null } } };
+
 export type RecentTransactionsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -1023,6 +1077,24 @@ export const AccountActivityDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<AccountActivitySubscription, AccountActivitySubscriptionVariables>;
+export const AssetsDocument = new TypedDocumentString(`
+    query Assets($sortBy: AssetSort, $limit: Int, $cursor: String) {
+  assets(sortBy: $sortBy, limit: $limit, cursor: $cursor) {
+    items {
+      asset
+      code
+      issuer
+      native
+      supply
+      holders
+    }
+    pageInfo {
+      hasNextPage
+      cursor
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<AssetsQuery, AssetsQueryVariables>;
 export const RecentTransactionsDocument = new TypedDocumentString(`
     query RecentTransactions {
   transactions(limit: 5) {

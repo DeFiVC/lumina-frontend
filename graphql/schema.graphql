@@ -119,6 +119,24 @@ type Query {
   ): AssetDetail!
 
   """
+  Fetch a page of assets, ordered by holder count or transfer volume.
+
+  Cursor-paginated on the same `PageInfo` as every other list in the schema, so
+  a walk through the assets keeps its place even as newer activity lands. The
+  page is a summary: it carries supply and holder counts, not the per-asset
+  volume series `asset` returns. Clients that want the series ask for it on
+  `asset`, one asset at a time — a list of fifty series is fifty times the
+  aggregation for a column nobody is reading.
+  """
+  assets(
+    network: Network
+    """What to order the page by. Defaults to the most-held assets."""
+    sortBy: AssetSort = HOLDERS
+    limit: Int = 20
+    cursor: String
+  ): AssetPage!
+
+  """
   How far behind the chain this API data is. Advisory — see IndexerStatus for
   what it does and does not promise.
   """
@@ -390,6 +408,20 @@ type ContractSchema {
 }
 
 # ─── Asset analytics ─────────────────────────────────────────────────────────
+
+"""What a list of assets is ordered by. See the `assets` root field."""
+enum AssetSort {
+  """Most-held first — the default, and the useful one for a token list."""
+  HOLDERS
+  """Highest recent transfer volume first."""
+  VOLUME
+}
+
+"""One page of assets. Cursor-paginated like every other list in the schema."""
+type AssetPage {
+  items: [AssetDetail!]!
+  pageInfo: PageInfo!
+}
 
 """
 Everything an asset detail page needs: supply and holders from indexed

@@ -253,3 +253,23 @@ subscription AccountActivity($address: String!) {
     buying
   }
 }
+
+# The list half of the asset browser (#52). Deliberately does not select
+# `series`: that is the expensive part of AssetDetail and a list of twenty of
+# them is an aggregation nobody asked for. The detail query has it.
+query Assets($sortBy: AssetSort, $limit: Int, $cursor: String) {
+  assets(sortBy: $sortBy, limit: $limit, cursor: $cursor) {
+    items {
+      asset
+      code
+      issuer
+      native
+      supply
+      holders
+    }
+    pageInfo {
+      hasNextPage
+      cursor
+    }
+  }
+}
