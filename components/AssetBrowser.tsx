@@ -21,6 +21,7 @@
  * make the list skip or repeat a row the way an offset would.
  */
 import { useCallback, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   AssetsDocument as ASSETS_QUERY,
@@ -29,6 +30,7 @@ import {
 } from "@/lib/generated/graphql";
 import { gqlFetch, PUBLIC_GRAPHQL_URL } from "@/lib/graphql";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import LoadMoreFooter from "./LoadMoreFooter";
 import BackendUnavailable from "./BackendUnavailable";
 import { t } from "@/lib/i18n";
@@ -161,9 +163,10 @@ export default function AssetBrowser({
 
   if (initial.length === 0 && rows.length === 0 && !error && !hasNextPage) {
     return (
-      <div className="rounded-xl border border-[var(--color-border-default)] p-8 text-center text-[var(--color-text-muted)] text-sm">
-        {t("assets.noAssetsYet")}
-      </div>
+      <EmptyState
+        title="No assets indexed yet"
+        description="Once the indexer sees a balance or a transfer for an asset, it appears here."
+      />
     );
   }
 
@@ -228,32 +231,47 @@ export default function AssetBrowser({
             </tr>
           </thead>
           <tbody>
-            {visible.map((asset) => (
-              <tr
-                key={asset.asset}
-                className="border-b border-[var(--color-border-default)] last:border-0"
-              >
-                <td className="py-2.5 px-3 mono text-xs text-[var(--color-text-primary)]">
-                  {assetLabel(asset)}
-                </td>
-                <td className="py-2.5 px-3 mono text-xs text-[var(--color-text-secondary)] max-w-[280px] truncate">
-                  {asset.issuer ?? "—"}
-                </td>
-                <td className="py-2.5 px-3 mono text-xs text-[var(--color-text-secondary)] text-end">
-                  {formatSupply(asset.supply)}
-                </td>
-                <td className="py-2.5 px-3 mono text-xs text-[var(--color-text-secondary)] text-end">
-                  {asset.holders.toLocaleString()}
-                </td>
-              </tr>
-            ))}
+            {visible.map((asset) => {
+              const canOpen = !asset.native && !!asset.issuer && !!asset.code;
+              const assetText = assetLabel(asset);
+              return (
+                <tr
+                  key={asset.asset}
+                  className="border-b border-[var(--color-border-default)] last:border-0"
+                >
+                  <td className="py-2.5 px-3 mono text-xs text-[var(--color-text-primary)]">
+                    {canOpen ? (
+                      <Link
+                        href={`/assets/${encodeURIComponent(asset.code ?? asset.asset)}/${encodeURIComponent(asset.issuer ?? "")}`}
+                        className="text-[var(--color-accent-text)] hover:text-[var(--color-accent-text-hover)] hover:underline transition-colors"
+                      >
+                        {assetText}
+                      </Link>
+                    ) : (
+                      assetText
+                    )}
+                  </td>
+                  <td className="py-2.5 px-3 mono text-xs text-[var(--color-text-secondary)] max-w-[280px] truncate">
+                    {asset.issuer ?? "—"}
+                  </td>
+                  <td className="py-2.5 px-3 mono text-xs text-[var(--color-text-secondary)] text-end">
+                    {formatSupply(asset.supply)}
+                  </td>
+                  <td className="py-2.5 px-3 mono text-xs text-[var(--color-text-secondary)] text-end">
+                    {asset.holders.toLocaleString()}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
         {visible.length === 0 && (
-          <p className="p-8 text-center text-[var(--color-text-muted)] text-sm">
-            {t("assets.noMatch", { query: query.trim() })}
-          </p>
+          <EmptyState
+            variant="inline"
+            title={`No loaded asset matches \u201c${query.trim()}\u201d`}
+            className="p-8 text-center"
+          />
         )}
       </div>
 

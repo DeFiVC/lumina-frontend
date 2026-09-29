@@ -9,6 +9,7 @@ import { t } from "@/lib/i18n";
 
 const ROW_HEIGHT = 41;
 const OVERSCAN = 12;
+/** Number of columns in the desktop table: status dot + hash + ledger + source + ops + fee + time. */
 const COLUMNS = 7;
 
 export default function VirtualizedTransactionTable({
@@ -128,11 +129,6 @@ export default function VirtualizedTransactionTable({
         transactions.length === 0 && emptyMessage ? emptyMessage : undefined
       }
       afterTable={children}
-      onScroll={
-        onScrollTopChange
-          ? (event) => onScrollTopChange(event.currentTarget.scrollTop)
-          : undefined
-      }
     >
       <TableHead>
         {/* A plain row: `TableRow`'s border belongs to body rows, and the
